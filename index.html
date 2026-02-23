@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🎯 UUID to Exam URL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 0 1rem;
+    }
+
+    .card {
+      background-color: #1e293b;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h1 {
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+      color: #38bdf8;
+    }
+
+    input[type="text"] {
+      padding: 0.75rem 1rem;
+      width: 100%;
+      border-radius: 0.5rem;
+      border: 2px solid #334155;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #38bdf8;
+    }
+
+    #suggestions {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      max-height: 150px;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .suggestion-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .suggestion-item:hover {
+      background-color: #cbd5e1;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      background-color: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0ea5e9;
+    }
+
+    #error {
+      color: #facc15;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 500px) {
+      .card {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🔎 Search Your UUID</h1>
+    <input id="uuidInput" type="text" placeholder="Start typing your UUID..." />
+    <div id="suggestions"></div>
+    <button onclick="openExamUrl()">Open Exam URL</button>
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const uuidInput = document.getElementById('uuidInput');
+    const suggestionsDiv = document.getElementById('suggestions');
+    let selectedUUID = '';
+
+    uuidInput.addEventListener('input', () => {
+      const query = uuidInput.value.trim();
+      suggestionsDiv.innerHTML = '';
+
+      if (query.length < 3) return;
+
+      fetch(`/search-uuids?q=${query}`)
+        .then(res => res.json())
+        .then(data => {
+          suggestionsDiv.innerHTML = '';
+          data.forEach(uuid => {
+            const div = document.createElement('div');
+            div.textContent = uuid;
+            div.className = 'suggestion-item';
+            div.onclick = () => {
+              uuidInput.value = uuid;
+              selectedUUID = uuid;
+              suggestionsDiv.innerHTML = '';
+            };
+            suggestionsDiv.appendChild(div);
+          });
+        });
+    });
+
+    function openExamUrl() {
+      const uuid = uuidInput.value.trim();
+      if (!uuid) {
+        document.getElementById('error').textContent = "⚠️ Please enter a UUID";
+        return;
+      }
+
+      fetch(`/get-exam-url?uuid=${uuid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.exam_url) {
+            document.getElementById('error').textContent = '';
+            window.open(data.exam_url, '_blank');
+          } else {
+            document.getElementById('error').textContent = "❌ UUID not found";
+          }
+        })
+        .catch(() => {
+          document.getElementById('error').textContent = "⚠️ Server error";
+        });
+    }
+  </script>
+
+</body>
+</html>
+

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>📡 Live Client Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --light-bg: #f0f4ff;
+      --dark-bg: #1e293b;
+    }
+
+    html[data-theme='light'] body {
+      background-color: var(--light-bg);
+      color: #1f2937;
+    }
+
+    html[data-theme='dark'] body {
+      background-color: var(--dark-bg);
+      color: #f3f4f6;
+    }
+
+    .online {
+      color: #22c55e;
+    }
+
+    .offline {
+      color: #ef4444;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .card {
+      background: white;
+      border-radius: 1rem;
+      border-left: 4px solid;
+      padding: 1rem;
+      position: relative;
+      transition: all 0.3s ease-in-out;
+    }
+
+    html[data-theme='dark'] .card {
+      background: #111827;
+    }
+
+    .card.online {
+      border-color: #22c55e;
+    }
+
+    .card.offline {
+      border-color: #ef4444;
+    }
+
+    .card-icon {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 80px;
+      height: 80px;
+      opacity: 0.05;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-center items-center px-4 py-6 transition-colors duration-300">
+
+  <header class="text-center mb-6">
+    <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-blue-600 flex justify-center items-center">
+      <img src="https://img.icons8.com/emoji/48/satellite-antenna.png" class="w-10 h-10 mr-2" />
+      Live Client Monitor
+    </h1>
+    <p class="text-sm mt-2 text-gray-500">📊 Refreshes every <span class="font-semibold">1 minute</span></p>
+    <div class="mt-4 flex flex-wrap justify-center gap-4">
+      <button onclick="toggleTheme()" class="px-3 py-1 text-sm bg-gray-800 text-white rounded hover:bg-gray-700 transition">Toggle Light/Dark</button>
+      <button onclick="enableSiren()" class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition">Enable Siren</button>
+    </div>
+  </header>
+
+  <main class="w-full max-w-6xl">
+    <div id="status-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div class="animate-pulse text-center col-span-full text-gray-400">🔄 Loading data...</div>
+    </div>
+  </main>
+
+  <footer class="mt-10 text-xs text-gray-400 text-center">
+    &copy; 2025 VMukti Monitoring | Built for <span class="font-semibold">Dilip's Team</span>
+  </footer>
+
+  <!-- Your Local Custom Siren -->
+  <audio id="alert-siren" src="/emergency-alarm-with-reverb-29431.mp3" preload="auto"></audio>
+
+  <script>
+    let sirenEnabled = false;
+    const prevStatusMap = new Map();
+    const siren = document.getElementById('alert-siren');
+    const grid = document.getElementById('status-grid');
+
+    function toggleTheme() {
+      const root = document.documentElement;
+      const current = root.getAttribute('data-theme');
+      root.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+    }
+
+    function enableSiren() {
+      siren.play().then(() => {
+        siren.pause();
+        siren.currentTime = 0;
+        sirenEnabled = true;
+        alert("✅ Siren enabled!");
+      }).catch(err => {
+        alert("❌ Browser blocked sound: " + err.message);
+      });
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/status');
+        const data = await res.json();
+        grid.innerHTML = '';
+
+        data.forEach(({ url, status }) => {
+          const isOnline = status === 'ONLINE';
+          const lastStatus = prevStatusMap.get(url);
+          const isFirstCheck = !prevStatusMap.has(url);
+          const shouldAlert = status === 'OFFLINE' && (lastStatus !== 'OFFLINE' || isFirstCheck);
+
+          // Trigger siren
+          if (shouldAlert && sirenEnabled) {
+            siren.play().catch(() => {});
+          }
+
+          prevStatusMap.set(url, status);
+
+          const card = document.createElement('div');
+          card.className = `card fade-in ${isOnline ? 'online' : 'offline'}`;
+          card.innerHTML = `
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="text-sm font-medium mb-2 break-words text-blue-600 dark:text-blue-300">
+              🔗 <a href="${url}" target="_blank" class="underline hover:text-blue-400">${url}</a>
+            </div>
+            <div class="flex items-center">
+              <div class="mr-2">
+                <svg class="w-6 h-6 ${isOnline ? 'text-green-500' : 'text-red-500'} ${!isOnline ? 'animate-pulse' : ''}" fill="currentColor" viewBox="0 0 20 20">
+                  ${isOnline
+                    ? '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-4l5-5-1.4-1.4L9 11.2 7.4 9.6 6 11l3 3z" clip-rule="evenodd"/>'
+                    : '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3-11l-2 2-2-2-1 1 2 2-2 2 1 1 2-2 2 2 1-1-2-2 2-2-1-1z" clip-rule="evenodd"/>'}
+                </svg>
+              </div>
+              <span class="font-bold text-base ${isOnline ? 'online' : 'offline'}">${status}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+      } catch (e) {
+        grid.innerHTML = `
+          <div class="text-red-500 col-span-full text-center">
+            ❌ Failed to load status. <br />
+            <span class="text-xs text-gray-400">Make sure <code>/status</code> API is running.</span>
+          </div>
+        `;
+      }
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 60 * 1000); // every 1 minute
+  </script>
+</body>
+</html>
+
